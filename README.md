@@ -20,7 +20,7 @@ AI-powered commit message generator for git. Automatically generates conventiona
 npm install --save-dev @light-cat/ai-commit-msg
 
 # Set up git hooks (installs simple-git-hooks if needed)
-npx ai-commit install:hooks
+npx ai-commit setup
 ```
 
 ### Global Installation
@@ -30,7 +30,7 @@ npm install -g @light-cat/ai-commit-msg
 
 # Then set up git hooks in your project
 cd /path/to/your/project
-npx ai-commit install:hooks
+npx ai-commit setup
 ```
 
 ## Configuration
@@ -70,7 +70,7 @@ AI_MAX_TOKENS=100
 
 ```bash
 # Install hooks and configure simple-git-hooks automatically
-npx ai-commit install:hooks
+npx ai-commit setup
 ```
 
 ### Manual Setup (if you already have simple-git-hooks)

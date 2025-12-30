@@ -6,15 +6,20 @@
  */
 
 import { execSync } from 'child_process';
-import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, realpathSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 
-const __dirname = fileURLToPath(new URL('.', import.meta.url));
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 async function installHooks() {
   console.log('[ai-commit] Setting up git hooks...');
 
   try {
+    // Get the absolute path to the ai-commit script
+    const aiCommitPath = realpathSync(join(__dirname, 'ai-commit.js'));
+    const nodeModulesBin = realpathSync(join(__dirname, '..', 'node_modules', '.bin'));
+
     // Check if simple-git-hooks is installed
     try {
       execSync('npm list simple-git-hooks --depth=0', { encoding: 'utf-8' });
@@ -37,7 +42,7 @@ async function installHooks() {
       packageJson['simple-git-hooks'] = {};
     }
 
-    packageJson['simple-git-hooks']['prepare-commit-msg'] = 'npx ai-commit';
+    packageJson['simple-git-hooks']['prepare-commit-msg'] = `node ${aiCommitPath}`;
 
     writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 
@@ -45,7 +50,7 @@ async function installHooks() {
 
     // Try to run simple-git-hooks to install the actual git hooks
     try {
-      execSync('npx simple-git-hooks', { encoding: 'utf-8' });
+      execSync(`${nodeModulesBin}/simple-git-hooks`, { encoding: 'utf-8' });
       console.log('[ai-commit] Git hooks installed successfully!');
     } catch {
       console.log('[ai-commit] Note: Git hooks will be installed when you run npm install');

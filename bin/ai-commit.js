@@ -61,10 +61,10 @@ if (commitMsgFile && existsSync(commitMsgFile)) {
 async function main() {
   try {
     // Load configuration
-    const { loadConfig } = await import('./dist/config.js');
-    const { getGitDiff, getCurrentBranch, getLastCommit } = await import('./dist/git.js');
-    const { generateCommitMessage } = await import('./dist/ai.js');
-    const { buildPrompt } = await import('./dist/prompt.js');
+    const { loadConfig } = await import('../dist/config.js');
+    const { getGitDiff, getCurrentBranch, getLastCommit } = await import('../dist/git.js');
+    const { generateCommitMessage } = await import('../dist/ai.js');
+    const { buildPrompt } = await import('../dist/prompt.js');
 
     const config = loadConfig();
 

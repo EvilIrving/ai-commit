@@ -1,6 +1,6 @@
 {
   "name": "@light-cat/ai-commit-msg",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "AI-powered commit message generator for git",
   "main": "dist/index.js",
@@ -12,7 +12,7 @@
     "build": "tsc",
     "dev": "ts-node src/index.ts",
     "prepare": "npm run build",
-    "install:hooks": "node bin/install.js"
+    "setup": "node bin/install.js"
   },
   "keywords": [
     "git",
@@ -20,6 +20,12 @@
     "ai",
     "commit-message",
     "cli"
+  ],
+  "files": [
+    "dist",
+    "bin",
+    "README.md",
+    "LICENSE"
   ],
   "author": "Light Cat",
   "license": "MIT",
@@ -34,7 +40,11 @@
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.10.0",
+    "simple-git-hooks": "^2.13.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.2"
+  },
+  "simple-git-hooks": {
+    "prepare-commit-msg": "node /Users/cain/Documents/code/node-ai-commit/bin/ai-commit.js"
   }
 }
