@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-12-30
+
+### Fixed
+
+- Fixed `bin/install.js` to use dynamic paths instead of `npx`
+  - Avoids `npx` resolution issues when package is installed in nested node_modules
+  - Uses absolute paths based on script location for git hook configuration
+
 ## [1.1.1] - 2025-12-30
 
 ### Fixed
@@ -35,7 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `js-yaml` for YAML config parsing
   - Added `@types/js-yaml` for TypeScript support
 
-## [1.0.0] - 2024-01-01
+## [1.0.0] - 2025-12-30
 
 ### Added
 
