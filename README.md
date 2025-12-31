@@ -8,7 +8,7 @@ AI-powered commit message generator for git. Automatically generates conventiona
 - 📝 **Conventional Commits**: Follows the [Conventional Commits](https://www.conventionalcommits.org/) format
 - 🔧 **Easy Configuration**: Simple `.env` setup with environment variable support
 - 🛡️ **Safe**: Doesn't block commit on errors - falls back gracefully
-- 🔌 **Flexible AI Support**: Works with OpenAI, Azure, DashScope (Qwen), and any OpenAI-compatible API
+- 🔌 **OpenAI Compatible**: Works with OpenAI, Azure OpenAI, and any OpenAI-compatible API
 - ⚡ **CLI Ready**: Can be used directly with `pnpm exec` or installed globally
 
 ## Installation
@@ -59,15 +59,31 @@ AI_MODEL=gpt-4
 |----------|-------------------|------------|
 | OpenAI | `https://api.openai.com/v1` | `gpt-4`, `gpt-3.5-turbo` |
 | Azure OpenAI | Your Azure endpoint | Your deployment name |
-| DashScope (Qwen) | `https://dashscope.aliyuncs.com/compatible-mode/v1` | `qwen-turbo`, `qwen-plus` |
 | Local/Other | Your custom endpoint | Any OpenAI-compatible model |
 
 ### Getting API Keys
 
 - **OpenAI**: Get your API key from [platform.openai.com](https://platform.openai.com)
-- **DashScope (Qwen)**: Get your API key from [dashscope.console.aliyun.com](https://dashscope.console.aliyun.com)
 
 ## Usage
+
+### Basic Usage
+
+After setting up the git hook, simply commit your changes without providing a message:
+
+```bash
+# Stage your changes
+git add .
+
+# Commit - AI will automatically generate a commit message
+git commit
+```
+
+The tool will:
+1. Fetch staged changes
+2. Send them to the AI service
+3. Generate a conventional commit message
+4. Write it to the commit message file
 
 ### Automatic Setup
 
@@ -244,7 +260,7 @@ pnpm link --global @light-cat/ai-commit-msg
 # Create .env with your API key
 pnpm exec ai-commit setup
 
-# Make some changes and commit
+# Make some changes and commit (don't provide message, let AI generate it)
 git add .
-git commit -m "test"
+git commit
 ```
