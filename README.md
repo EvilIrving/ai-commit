@@ -9,28 +9,35 @@ AI-powered commit message generator for git. Automatically generates conventiona
 - 🔧 **Easy Configuration**: Simple `.env` setup with environment variable support
 - 🛡️ **Safe**: Doesn't block commit on errors - falls back gracefully
 - 🔌 **Flexible AI Support**: Works with OpenAI, Azure, DashScope (Qwen), and any OpenAI-compatible API
-- ⚡ **CLI Ready**: Can be used directly with `npx` or installed globally
+- ⚡ **CLI Ready**: Can be used directly with `pnpm exec` or installed globally
 
 ## Installation
 
 ### Local Installation (Recommended)
 
 ```bash
-# Install as a development dependency
+# With npm
 npm install --save-dev @light-cat/ai-commit-msg
 
+# With pnpm
+pnpm add --save-dev @light-cat/ai-commit-msg
+
 # Set up git hooks (installs simple-git-hooks if needed)
-npx ai-commit setup
+pnpm exec ai-commit setup
 ```
 
 ### Global Installation
 
 ```bash
+# With npm
 npm install -g @light-cat/ai-commit-msg
+
+# With pnpm
+pnpm add -g @light-cat/ai-commit-msg
 
 # Then set up git hooks in your project
 cd /path/to/your/project
-npx ai-commit setup
+pnpm exec ai-commit setup
 ```
 
 ## Configuration
@@ -44,10 +51,6 @@ AI_API_KEY=your-api-key-here
 # Optional (defaults shown)
 AI_API_BASE_URL=https://api.openai.com/v1
 AI_MODEL=gpt-4
-
-# Optional tuning
-AI_TEMPERATURE=0.3
-AI_MAX_TOKENS=100
 ```
 
 ### Supported AI Providers
@@ -70,7 +73,7 @@ AI_MAX_TOKENS=100
 
 ```bash
 # Install hooks and configure simple-git-hooks automatically
-npx ai-commit setup
+pnpm exec ai-commit setup
 ```
 
 ### Manual Setup (if you already have simple-git-hooks)
@@ -80,7 +83,7 @@ Add to your `package.json`:
 ```json
 {
   "simple-git-hooks": {
-    "prepare-commit-msg": "npx ai-commit"
+    "prepare-commit-msg": "pnpm exec ai-commit"
   }
 }
 ```
@@ -92,20 +95,20 @@ Or if using `lefthook`:
 pre-commit:
   commands:
     generate-commit-msg:
-      run: npx ai-commit
+      run: pnpm exec ai-commit
 ```
 
 ### Standalone Usage
 
 ```bash
 # Dry run (show message without writing)
-npx ai-commit --dry-run
+pnpm exec ai-commit --dry-run
 
 # Verbose mode (show debug info)
-npx ai-commit --verbose
+pnpm exec ai-commit --verbose
 
 # Help
-npx ai-commit --help
+pnpm exec ai-commit --help
 ```
 
 ## How It Works
@@ -156,3 +159,92 @@ Simply provide a commit message when running `git commit -m "your message"` - th
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Local Development
+
+### Debugging
+
+#### 1. Direct Source Execution
+
+Run the source code directly with `tsx` (recommended for ESM projects):
+
+```bash
+cd /path/to/node-ai-commit
+pnpm tsx bin/ai-commit.js --help
+```
+
+Or using the dev script:
+
+```bash
+pnpm dev -- --help
+```
+
+> **Note**: `ts-node` has limited ESM support. Use `tsx` instead for better compatibility.
+
+#### 2. Using npm link
+
+Link the local package globally and test in other projects:
+
+```bash
+cd /path/to/node-ai-commit
+pnpm link
+
+# In another project
+cd /path/to/your-project
+pnpm link @light-cat/ai-commit-msg
+pnpm exec ai-commit setup
+```
+
+#### 3. Local Path Installation
+
+In another project's `package.json`:
+
+```json
+{
+  "devDependencies": {
+    "@light-cat/ai-commit-msg": "link:/path/to/node-ai-commit"
+  }
+}
+```
+
+Then run `pnpm install` or `npm install` in that project.
+
+#### 4. Build and Test
+
+```bash
+# Build the TypeScript
+pnpm build
+
+# Run locally (requires build first)
+node bin/ai-commit.js --help
+
+# Or run directly without building
+pnpm tsx bin/ai-commit.js --help
+```
+
+### Testing Setup
+
+1. Create a test repository:
+```bash
+mkdir test-ai-commit && cd test-ai-commit
+git init
+```
+
+2. Link the local package:
+```bash
+cd /path/to/node-ai-commit
+pnpm link --global
+
+cd /path/to/test-ai-commit
+pnpm link --global @light-cat/ai-commit-msg
+```
+
+3. Set up and test:
+```bash
+# Create .env with your API key
+pnpm exec ai-commit setup
+
+# Make some changes and commit
+git add .
+git commit -m "test"
+```

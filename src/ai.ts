@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
-import type { AIConfig } from './config';
-import { getSystemPrompt } from './prompt';
+import type { AIConfig } from './config.js';
+import { getSystemPrompt } from './prompt.js';
 
 /**
  * AI Service Adapter Interface
@@ -36,8 +36,6 @@ export class OpenAIAdapter implements AIServiceAdapter {
           content: prompt,
         },
       ],
-      temperature: config.temperature,
-      max_tokens: config.maxTokens,
     });
 
     const content = response.choices[0]?.message?.content;
@@ -98,10 +96,6 @@ export class DashScopeAdapter implements AIServiceAdapter {
             },
           ],
         },
-        parameters: {
-          temperature: config.temperature,
-          max_tokens: config.maxTokens,
-        },
       }),
     });
 
@@ -124,14 +118,7 @@ export class DashScopeAdapter implements AIServiceAdapter {
  * Factory function to create appropriate adapter based on config
  */
 export function createAIService(config: AIConfig): AIServiceAdapter {
-  const baseUrl = config.apiBaseUrl.toLowerCase();
-  
-  // Detect provider based on base URL or model
-  if (baseUrl.includes('dashscope') || config.model.includes('qwen')) {
-    return new DashScopeAdapter(config.apiKey, config.apiBaseUrl);
-  }
-  
-  // Default to OpenAI-compatible adapter
+  const baseUrl = config.apiBaseUrl.toLowerCase(); 
   return new OpenAIAdapter(config.apiKey, config.apiBaseUrl);
 }
 
