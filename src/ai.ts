@@ -2,129 +2,148 @@ import OpenAI from 'openai';
 import type { AIConfig } from './config.js';
 import { getSystemPrompt } from './prompt.js';
 
-/**
- * AI Service Adapter Interface
- * Allows easy extension for different AI providers
- */
 export interface AIServiceAdapter {
   generate(prompt: string, config: AIConfig): Promise<string>;
 }
 
-/**
- * OpenAI-compatible adapter (works with OpenAI, Azure, and many self-hosted models)
- */
+function extractText(response: OpenAI.Chat.Completions.ChatCompletion): string {
+  const message = response.choices[0]?.message;
+  const content = message?.content;
+  if (typeof content === 'string' && content.trim()) {
+    return content;
+  }
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        if (part && typeof part === 'object' && 'text' in part) {
+          return String((part as { text?: string }).text || '');
+        }
+        return '';
+      })
+      .join('');
+    if (text.trim()) return text;
+  }
+  const refusal = (message as { refusal?: string } | undefined)?.refusal;
+  if (refusal && refusal.trim()) {
+    throw new Error(`AI refused: ${refusal.trim()}`);
+  }
+  throw new Error('No response from AI');
+}
+
+export function cleanCommitMessage(content: string): string {
+  let text = content.replace(/\r\n/g, '\n').trim();
+
+  const fenced = text.match(/^```(?:[\w-]+)?\s*\n([\s\S]*?)\n```$/);
+  if (fenced?.[1]) {
+    text = fenced[1].trim();
+  } else {
+    text = text.replace(/^```(?:[\w-]+)?\s*\n?/, '').replace(/\n?```$/, '').trim();
+  }
+
+  text = text.replace(/^["']|["']$/g, '').trim();
+  text = text.replace(/^(commit message|提交信息)\s*[:：]\s*/i, '');
+  if (!text) {
+    throw new Error('AI returned an empty commit message');
+  }
+  return text;
+}
+
+function isUnsupportedParameterError(error: unknown): boolean {
+  const message = describeApiError(error).toLowerCase();
+  return /reasoning_effort/.test(message)
+    || /unknown parameter/.test(message)
+    || /unrecognized (request )?argument/.test(message)
+    || /unexpected keyword/.test(message)
+    || /extra fields? not permitted/.test(message)
+    || /unsupported parameter/.test(message);
+}
+
+function describeApiError(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  const apiError = error as {
+    status?: number;
+    message?: string;
+    error?: { message?: string };
+  };
+  const status = apiError.status ? `HTTP ${apiError.status}` : 'request failed';
+  const message = apiError.error?.message || apiError.message || 'unknown error';
+  return `${status}: ${message}`;
+}
+
 export class OpenAIAdapter implements AIServiceAdapter {
   private client: OpenAI;
 
-  constructor(apiKey: string, baseUrl: string) {
+  constructor(apiKey: string, baseUrl: string, timeoutMs: number, apiVersion?: string) {
     this.client = new OpenAI({
       apiKey,
       baseURL: baseUrl,
+      timeout: timeoutMs,
+      defaultQuery: apiVersion ? { 'api-version': apiVersion } : undefined,
     });
   }
 
   async generate(prompt: string, config: AIConfig): Promise<string> {
-    const response = await this.client.chat.completions.create({
-      model: config.model,
-      messages: [
-        {
-          role: 'system',
-          content: this.getSystemPrompt(config),
-        },
-        {
-          role: 'user',
-          content: prompt,
-        },
-      ],
-    });
-
-    const content = response.choices[0]?.message?.content;
-    if (!content) {
-      throw new Error('No response from AI');
-    }
-
-    // Clean up the response - remove quotes, extra whitespace
-    return this.cleanResponse(content);
-  }
-
-  private getSystemPrompt(config?: AIConfig): string {
-    return getSystemPrompt(config);
-  }
-
-  private cleanResponse(content: string): string {
-    return content
-      .trim()
-      .replace(/^["']|["']$/g, '') // Remove surrounding quotes
-      .replace(/^```[\s\S]*?```$/gm, '') // Remove code blocks
-      .split('\n')[0] // Take first line only
-      .trim();
-  }
-}
-
-/**
- * DashScope (Alibaba Qwen) adapter
- */
-export class DashScopeAdapter implements AIServiceAdapter {
-  private apiKey: string;
-  private baseUrl: string;
-
-  constructor(apiKey: string, baseUrl: string) {
-    this.apiKey = apiKey;
-    this.baseUrl = baseUrl;
-  }
-
-  async generate(prompt: string, config: AIConfig): Promise<string> {
-    const systemPrompt = getSystemPrompt(config);
-    
-    const response = await fetch(`${this.baseUrl}/api/services/aigc/text-generation/generation`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+      {
+        role: 'system',
+        content: getSystemPrompt(config),
       },
-      body: JSON.stringify({
-        model: config.model,
-        input: {
-          messages: [
-            {
-              role: 'system',
-              content: systemPrompt,
-            },
-            {
-              role: 'user',
-              content: prompt,
-            },
-          ],
-        },
-      }),
-    });
+      {
+        role: 'user',
+        content: prompt,
+      },
+    ];
 
-    if (!response.ok) {
-      throw new Error(`DashScope API error: ${response.statusText}`);
+    try {
+      const response = await this.createCompletion(config.model, messages, true);
+      return cleanCommitMessage(extractText(response));
+    } catch (error) {
+      throw new Error(`AI API ${describeApiError(error)}`);
+    }
+  }
+
+  private async createCompletion(
+    model: string,
+    messages: OpenAI.Chat.ChatCompletionMessageParam[],
+    preferNoReasoning: boolean
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    const request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
+      model,
+      messages,
+    };
+
+    if (preferNoReasoning) {
+      try {
+        return await this.client.chat.completions.create({
+          ...request,
+          reasoning_effort: 'none',
+        } as unknown as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
+      } catch (error) {
+        const status = (error as { status?: number }).status;
+        const canRetryWithoutReasoning = status === 400 || isUnsupportedParameterError(error);
+        if (!canRetryWithoutReasoning) {
+          throw error;
+        }
+      }
     }
 
-    const data = await response.json() as { output?: { text: string }; choices?: Array<{ message: { content: string } }> };
-    const content = data.output?.text || data.choices?.[0]?.message?.content;
-    
-    if (!content) {
-      throw new Error('No response from AI');
-    }
-
-    return content.trim().split('\n')[0].trim();
+    return this.client.chat.completions.create(request);
   }
 }
 
-/**
- * Factory function to create appropriate adapter based on config
- */
 export function createAIService(config: AIConfig): AIServiceAdapter {
-  const baseUrl = config.apiBaseUrl.toLowerCase(); 
-  return new OpenAIAdapter(config.apiKey, config.apiBaseUrl);
+  return new OpenAIAdapter(
+    config.apiKey,
+    config.apiBaseUrl,
+    config.timeoutMs,
+    config.apiVersion
+  );
 }
 
-/**
- * Generate commit message using AI
- */
 export async function generateCommitMessage(
   prompt: string,
   config: AIConfig

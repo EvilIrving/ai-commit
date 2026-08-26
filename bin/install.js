@@ -66,7 +66,7 @@ async function installHooks() {
       packageJson['simple-git-hooks'] = {};
     }
 
-    packageJson['simple-git-hooks']['prepare-commit-msg'] = `node ${aiCommitPath}`;
+    packageJson['simple-git-hooks']['prepare-commit-msg'] = `node ${aiCommitPath} "$@"`;
 
     writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2) + '\n');
 

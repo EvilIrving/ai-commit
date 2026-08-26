@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.5] - 2026-08-26
+
+### Added
+
+- Linked the npm package back to the GitHub repository (`repository`, `homepage`, `bugs`)
+- Added a Light Stats pointer at the bottom of the README
+- Printed a short author signature after a successful CLI generation
+- Accepted common OpenAI-compatible env names (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`)
+- Loaded `.env` from the git root and `~/.ai-commit.env`, not only the current directory
+- Added `AI_TIMEOUT_MS` and optional Azure `OPENAI_API_VERSION`
+- Default model is now `gpt-5.6-luna`; DeepSeek (`deepseek-v4-flash`) is documented as an OpenAI-compatible option
+- Commit generation asks for `reasoning_effort: none`, then retries without that field if the endpoint rejects it
+
+### Fixed
+
+- Removed a machine-local `simple-git-hooks` path from `package.json`
+- Added the MIT `LICENSE` file listed in the published package
+- Stopped treating CLI flags as the commit-message file path
+- Skipped generation for merge, squash, and amend commits
+- Stopped stripping fenced model output down to an empty first line
+- Kept git comment lines when writing `COMMIT_EDITMSG`
+- Used `execFile` for git so diffs with special characters are not lost
+- Redacted API keys in `--verbose` output
+
 ## [1.1.4] - 2025-12-31
 
 ### Changed

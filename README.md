@@ -42,28 +42,33 @@ pnpm exec ai-commit setup
 
 ## Configuration
 
-Create a `.env` file in your project root or set environment variables:
+Put a `.env` in the git root, or `~/.ai-commit.env` for a user-wide key. Real environment variables still win.
 
 ```env
-# Required
+# Required. OPENAI_API_KEY is also accepted.
 AI_API_KEY=your-api-key-here
 
-# Optional (defaults shown)
+# Optional. Defaults shown.
 AI_API_BASE_URL=https://api.openai.com/v1
-AI_MODEL=gpt-4
+AI_MODEL=gpt-5.6-luna
+AI_TIMEOUT_MS=30000
 ```
 
 ### Supported AI Providers
 
 | Provider | `AI_API_BASE_URL` | `AI_MODEL` |
 |----------|-------------------|------------|
-| OpenAI | `https://api.openai.com/v1` | `gpt-4`, `gpt-3.5-turbo` |
-| Azure OpenAI | Your Azure endpoint | Your deployment name |
-| Local/Other | Your custom endpoint | Any OpenAI-compatible model |
+| OpenAI | `https://api.openai.com/v1` | `gpt-5.6-luna` (default), or any chat model you have access to |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-v4-flash` or `deepseek-v4-pro` |
+| Azure OpenAI | Your Azure endpoint | Your deployment name. Set `OPENAI_API_VERSION` if required. |
+| Local / other | Your OpenAI-compatible endpoint | The model name that endpoint expects |
+
+`OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are accepted as aliases.
 
 ### Getting API Keys
 
-- **OpenAI**: Get your API key from [platform.openai.com](https://platform.openai.com)
+- **OpenAI**: [platform.openai.com](https://platform.openai.com)
+- **DeepSeek**: [platform.deepseek.com](https://platform.deepseek.com/api_keys)
 
 ## Usage
 
@@ -264,3 +269,7 @@ pnpm exec ai-commit setup
 git add .
 git commit
 ```
+
+---
+
+**More from the author:** [Light Stats](https://github.com/EvilIrving/light-stats) — native macOS menu bar monitor: CPU/GPU/memory pressure, health score, and AI CLI (Claude Code / Codex / Gemini) usage tracking.

@@ -1,6 +1,6 @@
 {
   "name": "@light-cat/ai-commit-msg",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "type": "module",
   "description": "AI-powered commit message generator for git",
   "main": "dist/index.js",
@@ -19,7 +19,11 @@
     "commit",
     "ai",
     "commit-message",
-    "cli"
+    "cli",
+    "conventional-commits",
+    "git-hooks",
+    "openai",
+    "deepseek"
   ],
   "files": [
     "dist",
@@ -27,8 +31,19 @@
     "README.md",
     "LICENSE"
   ],
-  "author": "Light Cat",
+  "author": "EvilIrving",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/EvilIrving/ai-commit.git"
+  },
+  "homepage": "https://github.com/EvilIrving/ai-commit#readme",
+  "bugs": {
+    "url": "https://github.com/EvilIrving/ai-commit/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=18.0.0"
   },
@@ -44,8 +59,5 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.3.2"
-  },
-  "simple-git-hooks": {
-    "prepare-commit-msg": "node /Users/cain/Documents/code/node-ai-commit/bin/ai-commit.js"
   }
 }
