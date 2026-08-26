@@ -10,8 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Linked the npm package back to the GitHub repository (`repository`, `homepage`, `bugs`)
-- Added a Light Stats pointer at the bottom of the README
-- Printed a short author signature after a successful CLI generation
+- Pointed the README and CLI signature back to the GitHub repo; Light Stats is mentioned only as a related project
+- Printed a short repo signature after a successful CLI generation
 - Accepted common OpenAI-compatible env names (`OPENAI_API_KEY`, `OPENAI_BASE_URL`, `OPENAI_MODEL`)
 - Loaded `.env` from the git root and `~/.ai-commit.env`, not only the current directory
 - Added `AI_TIMEOUT_MS` and optional Azure `OPENAI_API_VERSION`

@@ -272,4 +272,6 @@ git commit
 
 ---
 
-**More from the author:** [Light Stats](https://github.com/EvilIrving/light-stats) — native macOS menu bar monitor: CPU/GPU/memory pressure, health score, and AI CLI (Claude Code / Codex / Gemini) usage tracking.
+Source: [github.com/EvilIrving/ai-commit](https://github.com/EvilIrving/ai-commit)
+
+Also by the author: [Light Stats](https://github.com/EvilIrving/light-stats), a native macOS menu bar monitor.
