@@ -6,7 +6,7 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "ai-commit": "./bin/ai-commit.js"
+    "ai-commit": "bin/ai-commit.js"
   },
   "scripts": {
     "build": "tsc",
@@ -42,7 +42,8 @@
     "url": "https://github.com/EvilIrving/ai-commit/issues"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
   },
   "engines": {
     "node": ">=18.0.0"
