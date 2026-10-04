@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **Requests now go to the Responses API** (`client.responses.create`) instead of Chat Completions. The system prompt is sent as `instructions` and the diff as `input`. Any OpenAI-compatible endpoint must support `/responses`.
+- **Requests now go to the Responses API** (`client.responses.create`) instead of Chat Completions. The system prompt is sent as `instructions` and the diff as `input`. Endpoints that do not serve `/responses` fall back to `/chat/completions` on a 404 or 405, so Chat-Completions-only gateways keep working.
 - Upgraded `openai` from 4.104.0 (last released May 2025) to 7.27.0
 - `AI_REASONING_EFFORT` added, defaulting to `low`. It is sent as `reasoning.effort`, replacing the old hard-coded `reasoning_effort: 'none'`. Providers accept different sets: DeepSeek allows `low`, `high`, and `max`, OpenAI the full list
 - A diff over 8000 characters is now trimmed evenly across files instead of cut off at the character, so files past the limit are no longer dropped

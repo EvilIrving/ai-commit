@@ -86,9 +86,7 @@ export function loadConfig(configPath?: string): AIConfig {
   );
   const model = process.env.AI_MODEL || process.env.OPENAI_MODEL || 'gpt-5.6-luna';
   const timeoutMs = parseTimeout(process.env.AI_TIMEOUT_MS);
-  const reasoningEffort = parseReasoningEffort(
-    process.env.AI_REASONING_EFFORT || process.env.OPENAI_REASONING_EFFORT
-  );
+  const reasoningEffort = parseReasoningEffort(process.env.AI_REASONING_EFFORT);
   const apiVersion = process.env.OPENAI_API_VERSION || process.env.AZURE_OPENAI_API_VERSION;
 
   if (!apiKey) {

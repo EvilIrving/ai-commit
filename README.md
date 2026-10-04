@@ -69,7 +69,11 @@ AI_REASONING_EFFORT=low
 
 ### Reasoning effort
 
-Requests go to the [Responses API](https://platform.openai.com/docs/api-reference/responses).
+Requests go to the [Responses API](https://platform.openai.com/docs/api-reference/responses), and fall
+back to `/chat/completions` automatically when the endpoint does not serve `/responses` (a 404 or
+405). That covers self-hosted and third-party gateways that only implement Chat Completions, so any
+OpenAI-compatible endpoint works either way.
+
 `AI_REASONING_EFFORT` controls how much the model reasons before answering, and defaults to `low`:
 
 | Value | Effect |

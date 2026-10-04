@@ -113,22 +113,32 @@ export function truncateDiff(diff: string, budget: number): string {
   if (diff.length <= budget) return diff;
 
   const sections = diff.split(/^(?=diff --git )/m).filter((section) => section.trim());
-  const perFile = Math.floor(budget / Math.max(sections.length, 1));
   const kept: string[] = [];
   const dropped: string[] = [];
+  let remaining = budget;
 
-  for (const section of sections) {
+  for (let index = 0; index < sections.length; index += 1) {
+    const section = sections[index];
     const path = section.match(/^diff --git a\/.+ b\/(.+)$/m)?.[1];
-    if (section.length <= perFile) {
+    const filesLeft = sections.length - index;
+
+    if (section.length <= remaining) {
       kept.push(section);
+      remaining -= section.length;
       continue;
     }
-    if (perFile < 200) {
-      // Too little room to show anything useful from this file; name it instead.
+
+    // Spread whatever is left over the files still to come, so a short file early on hands its
+    // unused share to the ones behind it instead of wasting the budget.
+    const share = Math.floor(remaining / filesLeft);
+    if (share < 200) {
+      // Too little room for a useful excerpt; name the file instead.
       if (path) dropped.push(path);
       continue;
     }
-    kept.push(`${section.slice(0, perFile)}\n... (this file is truncated)\n`);
+
+    kept.push(`${section.slice(0, share)}\n... (this file is truncated)\n`);
+    remaining -= share;
     if (path) dropped.push(`${path} (partial)`);
   }
 

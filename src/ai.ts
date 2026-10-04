@@ -6,6 +6,12 @@ export interface AIServiceAdapter {
   generate(prompt: string, config: AIConfig): Promise<string>;
 }
 
+/** True when the endpoint does not serve the path at all, as opposed to rejecting the body. */
+function isMissingEndpoint(error: unknown): boolean {
+  const status = (error as { status?: number }).status;
+  return status === 404 || status === 405;
+}
+
 /**
  * Pull the answer text out of a Responses API reply.
  *
@@ -27,6 +33,19 @@ function extractResponseText(response: OpenAI.Responses.Response): string {
   }
 
   return chunks.join('').trim();
+}
+
+/** The same text, from a Chat Completions reply. */
+function extractChatText(response: OpenAI.Chat.Completions.ChatCompletion): string {
+  const message = response.choices[0]?.message;
+
+  if (typeof message?.content === 'string' && message.content.trim()) {
+    return message.content.trim();
+  }
+  if (message?.refusal?.trim()) {
+    throw new Error(`the model refused: ${message.refusal.trim()}`);
+  }
+  return '';
 }
 
 /** The error text is built from either a plain Error or an API error object. */
@@ -87,14 +106,27 @@ export class OpenAIAdapter implements AIServiceAdapter {
 
   async generate(prompt: string, config: AIConfig): Promise<string> {
     try {
-      const response = await this.createResponse(config.model, prompt, config);
-      const text = extractResponseText(response);
-      if (!text) {
-        throw new Error(`no text in the response (status: ${response.status ?? 'unknown'})`);
-      }
+      const text = await this.complete(prompt, config);
+      if (!text) throw new Error('the model returned no text');
       return cleanCommitMessage(text);
     } catch (error) {
       throw new Error(`AI API ${describeApiError(error)}`);
+    }
+  }
+
+  /**
+   * Ask for the message, preferring the Responses API and falling back to Chat Completions.
+   *
+   * A 404 or 405 means the endpoint does not serve `/responses` at all, which is common for
+   * self-hosted and third-party gateways. Those still speak `/chat/completions`, so the same
+   * request is retried there rather than failing the commit.
+   */
+  private async complete(prompt: string, config: AIConfig): Promise<string> {
+    try {
+      return extractResponseText(await this.createResponse(config.model, prompt, config));
+    } catch (error) {
+      if (!isMissingEndpoint(error)) throw error;
+      return extractChatText(await this.createCompletion(config.model, prompt, config));
     }
   }
 
@@ -113,6 +145,7 @@ export class OpenAIAdapter implements AIServiceAdapter {
     try {
       return await this.client.responses.create(request);
     } catch (error) {
+      if (isMissingEndpoint(error)) throw error;
       // Endpoints that predate the reasoning parameter reject it; retry without it once.
       const status = (error as { status?: number }).status;
       if (status !== 400 && !isUnsupportedParameterError(error)) {
@@ -121,6 +154,22 @@ export class OpenAIAdapter implements AIServiceAdapter {
       const { reasoning: _reasoning, ...withoutReasoning } = request;
       return this.client.responses.create(withoutReasoning);
     }
+  }
+
+  private async createCompletion(
+    model: string,
+    prompt: string,
+    config: AIConfig
+  ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
+    const request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
+      model,
+      messages: [
+        { role: 'system', content: getSystemPrompt(config) },
+        { role: 'user', content: prompt },
+      ],
+    };
+
+    return this.client.chat.completions.create(request);
   }
 }
 
