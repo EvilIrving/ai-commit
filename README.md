@@ -62,9 +62,23 @@ AI_API_KEY=your-api-key-here
 AI_API_BASE_URL=https://api.openai.com/v1
 AI_MODEL=gpt-5.6-luna
 AI_TIMEOUT_MS=30000
+AI_REASONING_EFFORT=low
 ```
 
 `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are accepted as aliases.
+
+### Reasoning effort
+
+Requests go to the [Responses API](https://platform.openai.com/docs/api-reference/responses).
+`AI_REASONING_EFFORT` controls how much the model reasons before answering, and defaults to `low`:
+
+| Value | Effect |
+| --- | --- |
+| `none` | No reasoning. Fastest, and the cheapest for a task this small. |
+| `low` | Default. A little reasoning, which helps when the diff mixes a feature and a refactor. |
+| `medium` / `high` / `xhigh` / `max` | More reasoning. Slower and more expensive; rarely needed for a commit message. |
+
+Endpoints that do not accept the parameter are retried once without it, so older gateways keep working.
 
 ### Supported providers
 
@@ -158,7 +172,9 @@ pnpm exec ai-commit --help
 3. It sends those to the configured endpoint and asks for a conventional commit message.
 4. The result is written to the commit message file.
 
-The diff is truncated to 8000 characters before it is sent.
+The diff is sent to the model in full up to 8000 characters. Past that, the budget is spread across
+the changed files instead of cutting the list short, so every file is still represented, and the
+files whose diffs were trimmed are named at the end.
 
 ## Example
 

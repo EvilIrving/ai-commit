@@ -9,7 +9,23 @@ export interface AIConfig {
   apiBaseUrl: string;
   model: string;
   timeoutMs: number;
+  reasoningEffort: ReasoningEffort;
   apiVersion?: string;
+}
+
+/** Accepted by the Responses API. `none` turns reasoning off entirely. */
+export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+const REASONING_EFFORTS: readonly ReasoningEffort[] = [
+  'none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max',
+];
+
+function parseReasoningEffort(raw: string | undefined): ReasoningEffort {
+  const value = raw?.trim().toLowerCase();
+  if (value && (REASONING_EFFORTS as readonly string[]).includes(value)) {
+    return value as ReasoningEffort;
+  }
+  return 'low';
 }
 
 function gitRoot(): string {
@@ -70,6 +86,9 @@ export function loadConfig(configPath?: string): AIConfig {
   );
   const model = process.env.AI_MODEL || process.env.OPENAI_MODEL || 'gpt-5.6-luna';
   const timeoutMs = parseTimeout(process.env.AI_TIMEOUT_MS);
+  const reasoningEffort = parseReasoningEffort(
+    process.env.AI_REASONING_EFFORT || process.env.OPENAI_REASONING_EFFORT
+  );
   const apiVersion = process.env.OPENAI_API_VERSION || process.env.AZURE_OPENAI_API_VERSION;
 
   if (!apiKey) {
@@ -83,6 +102,7 @@ export function loadConfig(configPath?: string): AIConfig {
     apiBaseUrl,
     model,
     timeoutMs,
+    reasoningEffort,
     apiVersion: apiVersion || undefined,
   };
 }
@@ -98,16 +118,7 @@ export function redactConfig(aiConfig: AIConfig): Record<string, string | number
     apiBaseUrl: aiConfig.apiBaseUrl,
     model: aiConfig.model,
     timeoutMs: aiConfig.timeoutMs,
+    reasoningEffort: aiConfig.reasoningEffort,
     apiVersion: aiConfig.apiVersion,
   };
-}
-
-export function isConfigured(): boolean {
-  try {
-    loadEnvFiles(process.env.CONFIG_PATH);
-  } catch {
-    // Ignore dotenv failures; the key check below is the source of truth.
-  }
-  const apiKey = process.env.AI_API_KEY || process.env.OPENAI_API_KEY || '';
-  return Boolean(apiKey);
 }

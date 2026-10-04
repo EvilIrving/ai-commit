@@ -1,6 +1,6 @@
 {
   "name": "@light-cat/ai-commit-msg",
-  "version": "1.1.6",
+  "version": "2.0.0",
   "type": "module",
   "description": "AI-powered commit message generator for git",
   "main": "dist/index.js",
@@ -51,7 +51,7 @@
   "dependencies": {
     "dotenv": "^16.3.1",
     "js-yaml": "^4.1.1",
-    "openai": "^4.20.1"
+    "openai": "^7.27.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

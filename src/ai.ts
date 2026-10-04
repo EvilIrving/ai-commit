@@ -6,29 +6,20 @@ export interface AIServiceAdapter {
   generate(prompt: string, config: AIConfig): Promise<string>;
 }
 
-function extractText(response: OpenAI.Chat.Completions.ChatCompletion): string {
-  const message = response.choices[0]?.message;
-  const content = message?.content;
-  if (typeof content === 'string' && content.trim()) {
-    return content;
+/** The error text is built from either a plain Error or an API error object. */
+function describeApiError(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return error instanceof Error ? error.message : String(error);
   }
-  if (Array.isArray(content)) {
-    const text = content
-      .map((part) => {
-        if (typeof part === 'string') return part;
-        if (part && typeof part === 'object' && 'text' in part) {
-          return String((part as { text?: string }).text || '');
-        }
-        return '';
-      })
-      .join('');
-    if (text.trim()) return text;
-  }
-  const refusal = (message as { refusal?: string } | undefined)?.refusal;
-  if (refusal && refusal.trim()) {
-    throw new Error(`AI refused: ${refusal.trim()}`);
-  }
-  throw new Error('No response from AI');
+
+  const apiError = error as {
+    status?: number;
+    message?: string;
+    error?: { message?: string };
+  };
+  const status = apiError.status ? `HTTP ${apiError.status}` : 'request failed';
+  const message = apiError.error?.message || apiError.message || 'unknown error';
+  return `${status}: ${message}`;
 }
 
 export function cleanCommitMessage(content: string): string {
@@ -51,27 +42,12 @@ export function cleanCommitMessage(content: string): string {
 
 function isUnsupportedParameterError(error: unknown): boolean {
   const message = describeApiError(error).toLowerCase();
-  return /reasoning_effort/.test(message)
+  return /reasoning/.test(message)
     || /unknown parameter/.test(message)
     || /unrecognized (request )?argument/.test(message)
     || /unexpected keyword/.test(message)
     || /extra fields? not permitted/.test(message)
     || /unsupported parameter/.test(message);
-}
-
-function describeApiError(error: unknown): string {
-  if (!error || typeof error !== 'object') {
-    return error instanceof Error ? error.message : String(error);
-  }
-
-  const apiError = error as {
-    status?: number;
-    message?: string;
-    error?: { message?: string };
-  };
-  const status = apiError.status ? `HTTP ${apiError.status}` : 'request failed';
-  const message = apiError.error?.message || apiError.message || 'unknown error';
-  return `${status}: ${message}`;
 }
 
 export class OpenAIAdapter implements AIServiceAdapter {
@@ -87,51 +63,37 @@ export class OpenAIAdapter implements AIServiceAdapter {
   }
 
   async generate(prompt: string, config: AIConfig): Promise<string> {
-    const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: 'system',
-        content: getSystemPrompt(config),
-      },
-      {
-        role: 'user',
-        content: prompt,
-      },
-    ];
-
     try {
-      const response = await this.createCompletion(config.model, messages, true);
-      return cleanCommitMessage(extractText(response));
+      const response = await this.createResponse(config.model, prompt, config);
+      return cleanCommitMessage(response.output_text);
     } catch (error) {
       throw new Error(`AI API ${describeApiError(error)}`);
     }
   }
 
-  private async createCompletion(
+  private async createResponse(
     model: string,
-    messages: OpenAI.Chat.ChatCompletionMessageParam[],
-    preferNoReasoning: boolean
-  ): Promise<OpenAI.Chat.Completions.ChatCompletion> {
-    const request: OpenAI.Chat.ChatCompletionCreateParamsNonStreaming = {
+    prompt: string,
+    config: AIConfig
+  ): Promise<OpenAI.Responses.Response> {
+    const request: OpenAI.Responses.ResponseCreateParamsNonStreaming = {
       model,
-      messages,
+      instructions: getSystemPrompt(config),
+      input: prompt,
+      reasoning: { effort: config.reasoningEffort },
     };
 
-    if (preferNoReasoning) {
-      try {
-        return await this.client.chat.completions.create({
-          ...request,
-          reasoning_effort: 'none',
-        } as unknown as OpenAI.Chat.ChatCompletionCreateParamsNonStreaming);
-      } catch (error) {
-        const status = (error as { status?: number }).status;
-        const canRetryWithoutReasoning = status === 400 || isUnsupportedParameterError(error);
-        if (!canRetryWithoutReasoning) {
-          throw error;
-        }
+    try {
+      return await this.client.responses.create(request);
+    } catch (error) {
+      // Endpoints that predate the reasoning parameter reject it; retry without it once.
+      const status = (error as { status?: number }).status;
+      if (status !== 400 && !isUnsupportedParameterError(error)) {
+        throw error;
       }
+      const { reasoning: _reasoning, ...withoutReasoning } = request;
+      return this.client.responses.create(withoutReasoning);
     }
-
-    return this.client.chat.completions.create(request);
   }
 }
 

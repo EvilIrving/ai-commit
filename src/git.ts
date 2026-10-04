@@ -39,15 +39,7 @@ export function getGitStatus(): string {
   return gitExec(['status', '--porcelain']);
 }
 
+/** All tracked files that differ from HEAD, staged or not. */
 export function getChangedFiles(): string[] {
-  const status = getGitStatus();
-  if (!status) return [];
-
-  return status
-    .split('\n')
-    .filter((line) => line.trim())
-    .map((line) => {
-      const match = line.match(/^[MADRC]\s+(.+)$/);
-      return match ? match[1] : line.trim();
-    });
+  return gitExec(['diff', '--name-only', 'HEAD']).split('\n').filter(Boolean);
 }

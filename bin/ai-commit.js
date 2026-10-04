@@ -125,13 +125,14 @@ const isDryRun = args.includes('--dry-run');
 const isVerbose = args.includes('--verbose');
 const isHelp = args.includes('--help') || args.includes('-h');
 const isSetup = args.includes('setup');
-const hookSource = args.find((arg, index) => {
-  if (arg.startsWith('-') || arg === 'setup') return false;
-  // Git prepare-commit-msg: $1 file, $2 source, $3 sha
-  return index > 0 && ['message', 'template', 'merge', 'squash', 'commit'].includes(arg);
-});
-const commitMsgFile = args.find((arg) => !arg.startsWith('-') && arg !== 'setup' && !['message', 'template', 'merge', 'squash', 'commit'].includes(arg))
-  || join(process.cwd(), '.git/COMMIT_EDITMSG');
+
+// prepare-commit-msg receives: <file> [<source> [<sha>]].
+// The message file is always the first positional argument, so the source is read from the second
+// one only. That keeps a file that happens to be named "message" from being mistaken for a source.
+const HOOK_SOURCES = ['message', 'template', 'merge', 'squash', 'commit'];
+const positional = args.filter((arg) => !arg.startsWith('-') && arg !== 'setup');
+const hookSource = positional[1] && HOOK_SOURCES.includes(positional[1]) ? positional[1] : undefined;
+const commitMsgFile = positional[0] || join(process.cwd(), '.git/COMMIT_EDITMSG');
 
 if (isHelp) {
   console.log(`
@@ -151,6 +152,7 @@ Configuration (.env in the repo, ~/.ai-commit.env, or environment variables):
   AI_API_BASE_URL / OPENAI_BASE_URL   OpenAI-compatible endpoint
   AI_MODEL / OPENAI_MODEL             Model name (default gpt-5.6-luna)
   AI_TIMEOUT_MS                       Request timeout, default 30000
+  AI_REASONING_EFFORT                 none|minimal|low|medium|high|xhigh|max (default low)
   OPENAI_API_VERSION                  Azure OpenAI api-version, if needed
 `.trim());
   process.exit(0);

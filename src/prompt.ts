@@ -1,5 +1,8 @@
 import type { AIConfig } from './config.js';
-import { getPromptConfig, hasRcConfig } from './rc-config.js';
+import { getPromptConfig } from './rc-config.js';
+
+/** How much of the diff is sent to the model. */
+const DIFF_BUDGET = 8000;
 
 export interface PromptContext {
   diff: string;
@@ -32,45 +35,24 @@ export const DEFAULT_SYSTEM_PROMPTS = {
  * If no .ai-commitrc config exists, default to Chinese
  */
 function getDefaultSystemPrompt(config?: AIConfig): string {
-  const promptConfig = getPromptConfig(config);
-  const lang = promptConfig.language;
+  const lang = getPromptConfig(config).language;
 
-  if (lang) {
-    // If language is specified in config, use it
-    if (lang.toLowerCase().startsWith('en')) {
-      return DEFAULT_SYSTEM_PROMPTS.en;
-    }
-    if (lang.toLowerCase().startsWith('zh')) {
-      return DEFAULT_SYSTEM_PROMPTS.zh;
-    }
+  if (lang?.toLowerCase().startsWith('en')) {
+    return DEFAULT_SYSTEM_PROMPTS.en;
   }
 
-  // If no config file exists, default to Chinese
-  if (!hasRcConfig()) {
-    return DEFAULT_SYSTEM_PROMPTS.zh;
-  }
-
-  // Default to Chinese for unspecified
   return DEFAULT_SYSTEM_PROMPTS.zh;
 }
 
 /**
- * Get the language for user prompt
- * If no .ai-commitrc config exists, default to Chinese
+ * Whether the generated message should be Chinese.
+ * A `.ai-commitrc` that names a language wins; without one, Chinese is the default.
  */
 function isChinese(config?: AIConfig): boolean {
-  const promptConfig = getPromptConfig(config);
-  const lang = promptConfig.language;
-
+  const lang = getPromptConfig(config).language;
   if (lang) {
     return lang.toLowerCase().startsWith('zh');
   }
-
-  // If no config file exists, default to Chinese
-  if (!hasRcConfig()) {
-    return true;
-  }
-
   return true;
 }
 
@@ -94,10 +76,11 @@ export function buildPrompt(context: PromptContext): string {
   const filesSummary = summarizeFiles(changedFiles);
 
   const useChinese = isChinese(config);
+  const body = truncateDiff(diff, DIFF_BUDGET);
 
-  let prompt = useChinese
-    ? `基于下面的 git diff 生成中文的提交信息：\n\n## Git 信息\n- 分支：${branch}\n${lastCommit ? `- 上次提交：${lastCommit}` : ''}\n\n## 变更文件\n${filesSummary}\n\n## 代码差异\n\`\`\`diff\n${diff.substring(0, 8000)}${diff.length > 8000 ? '\n... (已截断)' : ''}\n\`\`\``
-    : `Based on the following git diff, generate a commit message:\n\n## Git Information\n- Branch: ${branch}\n${lastCommit ? `- Last commit: ${lastCommit}` : ''}\n\n## Changed Files\n${filesSummary}\n\n## Diff\n\`\`\`diff\n${diff.substring(0, 8000)}${diff.length > 8000 ? '\n... (truncated)' : ''}\n\`\`\``;
+  const prompt = useChinese
+    ? `基于下面的 git diff 生成中文的提交信息：\n\n## Git 信息\n- 分支：${branch}\n${lastCommit ? `- 上次提交：${lastCommit}` : ''}\n\n## 变更文件\n${filesSummary}\n\n## 代码差异\n\`\`\`diff\n${body}\n\`\`\``
+    : `Based on the following git diff, generate a commit message:\n\n## Git Information\n- Branch: ${branch}\n${lastCommit ? `- Last commit: ${lastCommit}` : ''}\n\n## Changed Files\n${filesSummary}\n\n## Diff\n\`\`\`diff\n${body}\n\`\`\``;
 
   return prompt;
 }
@@ -106,33 +89,54 @@ export function buildPrompt(context: PromptContext): string {
  * Extract changed files from diff
  */
 function extractChangedFiles(diff: string): string[] {
-  const files: string[] = [];
-  const lines = diff.split('\n');
+  const files = new Set<string>();
 
-  for (const line of lines) {
-    // Match file headers in diff: diff --git a/path/to/file b/path/to/file
+  for (const line of diff.split('\n')) {
     const match = line.match(/^diff --git a\/(.+) b\/(.+)$/);
     if (match) {
-      files.push(match[2]);
-    }
-    // Match new file: new file mode
-    const newFileMatch = line.match(/^new file mode \d+$/);
-    if (newFileMatch) {
-      // Next few lines might contain the new file path
-      const idx = lines.indexOf(line);
-      for (let i = idx + 1; i < Math.min(idx + 5, lines.length); i++) {
-        const fileMatch = lines[i].match(/^--- \/dev\/null$/);
-        if (fileMatch) continue;
-        const createMatch = lines[i].match(/^\+\+\+ b\/(.+)$/);
-        if (createMatch) {
-          files.push(createMatch[1]);
-          break;
-        }
-      }
+      files.add(match[2]);
     }
   }
 
-  return [...new Set(files)];
+  return [...files];
+}
+
+/**
+ * Truncate a diff to a budget without dropping whole files.
+ *
+ * Cutting at a fixed character count silently drops every file past the limit, so a change whose
+ * substance is in the later files produces a message about the wrong thing. The budget is instead
+ * spread over the files, and whatever does not fit is named in a trailing note so the model knows
+ * more files were touched.
+ */
+export function truncateDiff(diff: string, budget: number): string {
+  if (diff.length <= budget) return diff;
+
+  const sections = diff.split(/^(?=diff --git )/m).filter((section) => section.trim());
+  const perFile = Math.floor(budget / Math.max(sections.length, 1));
+  const kept: string[] = [];
+  const dropped: string[] = [];
+
+  for (const section of sections) {
+    const path = section.match(/^diff --git a\/.+ b\/(.+)$/m)?.[1];
+    if (section.length <= perFile) {
+      kept.push(section);
+      continue;
+    }
+    if (perFile < 200) {
+      // Too little room to show anything useful from this file; name it instead.
+      if (path) dropped.push(path);
+      continue;
+    }
+    kept.push(`${section.slice(0, perFile)}\n... (this file is truncated)\n`);
+    if (path) dropped.push(`${path} (partial)`);
+  }
+
+  const note = dropped.length
+    ? `\n\n## Files with omitted or partial diffs\n${dropped.map((f) => `- ${f}`).join('\n')}`
+    : '';
+
+  return kept.join('') + note;
 }
 
 /**
@@ -142,7 +146,7 @@ function renderUserTemplate(template: string, context: { diff: string; branch: s
   let result = template;
 
   // Replace {{diff}} - truncate if too long
-  const truncatedDiff = context.diff.substring(0, 8000) + (context.diff.length > 8000 ? '\n... (truncated)' : '');
+  const truncatedDiff = truncateDiff(context.diff, DIFF_BUDGET);
   result = result.replace(/\{\{diff\}\}/g, truncatedDiff);
 
   // Replace {{branch}}

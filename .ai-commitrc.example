@@ -5,7 +5,7 @@
 # Supported file formats: .ai-commitrc, .ai-commitrc.yml, .ai-commitrc.yaml, .ai-commitrc.json
 #
 # Variables available in userPromptTemplate:
-#   {{diff}}       - The git diff (auto-truncated to 8000 chars)
+#   {{diff}}       - The git diff (trimmed to 8000 chars, spread across files rather than cut short)
 #   {{branch}}     - Current git branch name
 #   {{lastCommit}} - Previous commit message (if any)
 #

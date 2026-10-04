@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-10-04
+
+### Changed
+
+- **Requests now go to the Responses API** (`client.responses.create`) instead of Chat Completions. The system prompt is sent as `instructions` and the diff as `input`. Any OpenAI-compatible endpoint must support `/responses`.
+- Upgraded `openai` from 4.104.0 (last released May 2025) to 7.27.0
+- `AI_REASONING_EFFORT` added, defaulting to `low`. It is sent as `reasoning.effort`, replacing the old hard-coded `reasoning_effort: 'none'`
+- A diff over 8000 characters is now trimmed evenly across files instead of cut off at the character, so files past the limit are no longer dropped
+
+### Fixed
+
+- The old code sent `reasoning_effort: 'none'` on every request even though the SDK type did not accept it, so every generation paid for a rejected request and a retry
+- A commit message file named `message`, `template`, `merge`, `squash`, or `commit` was mistaken for a hook source, silently skipping generation
+- `extractChangedFiles` resolved each line with `indexOf` inside a loop (quadratic), and had a redundant `new file mode` branch for files already collected
+
+### Removed
+
+- Dead code: `isConfigured`, and the unreachable branch in `isChinese`
+
 ## [1.1.6] - 2026-10-04
 
 ### Changed
