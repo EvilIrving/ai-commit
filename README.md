@@ -78,14 +78,16 @@ Requests go to the [Responses API](https://platform.openai.com/docs/api-referenc
 | `low` | Default. A little reasoning, which helps when the diff mixes a feature and a refactor. |
 | `medium` / `high` / `xhigh` / `max` | More reasoning. Slower and more expensive; rarely needed for a commit message. |
 
-Endpoints that do not accept the parameter are retried once without it, so older gateways keep working.
+Not every provider accepts every level. DeepSeek supports `low`, `high`, and `max`, and rejects the
+others; OpenAI accepts the full set. Endpoints that reject the parameter are retried once without
+it, so older gateways keep working.
 
 ### Supported providers
 
 | Provider | `AI_API_BASE_URL` | `AI_MODEL` |
 | --- | --- | --- |
 | OpenAI | `https://api.openai.com/v1` | `gpt-5.6-luna` (default), or any chat model you have access to |
-| DeepSeek | `https://api.deepseek.com` | `deepseek-v4-flash` or `deepseek-v4-pro` |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-flash` or `deepseek-v4-pro` |
 | Azure OpenAI | Your Azure endpoint | Your deployment name. Set `OPENAI_API_VERSION` if your endpoint needs it. |
 | Local or other | Your OpenAI-compatible endpoint | The model name that endpoint expects |
 

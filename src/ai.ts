@@ -6,6 +6,29 @@ export interface AIServiceAdapter {
   generate(prompt: string, config: AIConfig): Promise<string>;
 }
 
+/**
+ * Pull the answer text out of a Responses API reply.
+ *
+ * The `output_text` convenience field is only filled in by the SDK's own `parse()` helper, so an
+ * ordinary `responses.create()` call leaves it undefined (DeepSeek does not send it at all). The
+ * text therefore has to be read from the `output` array: every `message` item's `output_text`
+ * parts, in order, skipping the `reasoning` items that reasoning models emit alongside them.
+ */
+function extractResponseText(response: OpenAI.Responses.Response): string {
+  const chunks: string[] = [];
+
+  for (const item of response.output ?? []) {
+    if (item.type !== 'message') continue;
+    for (const part of item.content ?? []) {
+      if (part.type === 'output_text' && part.text) {
+        chunks.push(part.text);
+      }
+    }
+  }
+
+  return chunks.join('').trim();
+}
+
 /** The error text is built from either a plain Error or an API error object. */
 function describeApiError(error: unknown): string {
   if (!error || typeof error !== 'object') {
@@ -65,7 +88,11 @@ export class OpenAIAdapter implements AIServiceAdapter {
   async generate(prompt: string, config: AIConfig): Promise<string> {
     try {
       const response = await this.createResponse(config.model, prompt, config);
-      return cleanCommitMessage(response.output_text);
+      const text = extractResponseText(response);
+      if (!text) {
+        throw new Error(`no text in the response (status: ${response.status ?? 'unknown'})`);
+      }
+      return cleanCommitMessage(text);
     } catch (error) {
       throw new Error(`AI API ${describeApiError(error)}`);
     }

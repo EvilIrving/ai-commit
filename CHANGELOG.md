@@ -13,11 +13,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Requests now go to the Responses API** (`client.responses.create`) instead of Chat Completions. The system prompt is sent as `instructions` and the diff as `input`. Any OpenAI-compatible endpoint must support `/responses`.
 - Upgraded `openai` from 4.104.0 (last released May 2025) to 7.27.0
-- `AI_REASONING_EFFORT` added, defaulting to `low`. It is sent as `reasoning.effort`, replacing the old hard-coded `reasoning_effort: 'none'`
+- `AI_REASONING_EFFORT` added, defaulting to `low`. It is sent as `reasoning.effort`, replacing the old hard-coded `reasoning_effort: 'none'`. Providers accept different sets: DeepSeek allows `low`, `high`, and `max`, OpenAI the full list
 - A diff over 8000 characters is now trimmed evenly across files instead of cut off at the character, so files past the limit are no longer dropped
 
 ### Fixed
 
+- **The answer text was read from `response.output_text`, which the SDK only fills in through its own `parse()` helper. An ordinary `responses.create()` leaves it undefined, and DeepSeek does not send the field at all, so every generation failed with an empty message.** The text is now read from the `output` array, skipping the `reasoning` items that reasoning models emit alongside the answer
+- `deepseek-v4-flash` in the README and `.env.example` does not exist; the model ID is `deepseek-flash`
 - The old code sent `reasoning_effort: 'none'` on every request even though the SDK type did not accept it, so every generation paid for a rejected request and a retry
 - A commit message file named `message`, `template`, `merge`, `squash`, or `commit` was mistaken for a hook source, silently skipping generation
 - `extractChangedFiles` resolved each line with `indexOf` inside a loop (quadratic), and had a redundant `new file mode` branch for files already collected
