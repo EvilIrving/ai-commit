@@ -1,48 +1,58 @@
 # @light-cat/ai-commit-msg
 
-AI-powered commit message generator for git. Automatically generates conventional commit messages based on your staged changes.
+Generates a commit message from your staged changes, so you can run `git commit` and get a
+conventional commit message without writing one.
+
+```bash
+# Stage something
+git add .
+
+# Commit without a message. The message is generated for you.
+git commit
+```
+
+You get something like:
+
+```
+feat(auth): add email validation function
+```
 
 ## Features
 
-- 🤖 **AI-powered**: Uses AI to analyze your code changes and generate meaningful commit messages
-- 📝 **Conventional Commits**: Follows the [Conventional Commits](https://www.conventionalcommits.org/) format
-- 🔧 **Easy Configuration**: Simple `.env` setup with environment variable support
-- 🛡️ **Safe**: Doesn't block commit on errors - falls back gracefully
-- 🔌 **OpenAI Compatible**: Works with OpenAI, Azure OpenAI, and any OpenAI-compatible API
-- ⚡ **CLI Ready**: Can be used directly with `pnpm exec` or installed globally
+- Reads the staged diff, the branch name, and the previous commit message
+- Writes a [Conventional Commits](https://www.conventionalcommits.org/) message
+- Works with OpenAI, DeepSeek, Azure OpenAI, and any OpenAI-compatible endpoint
+- If the API call fails, the commit goes through with an empty message instead of blocking you
+- A message you pass with `git commit -m` is left alone
 
 ## Installation
 
-### Local Installation (Recommended)
+Install it in the project you want it for, then register the git hook:
 
 ```bash
-# With npm
+# npm
 npm install --save-dev @light-cat/ai-commit-msg
 
-# With pnpm
+# or pnpm
 pnpm add --save-dev @light-cat/ai-commit-msg
 
-# Set up git hooks (installs simple-git-hooks if needed)
+# Registers the prepare-commit-msg hook (installs simple-git-hooks if you do not have it)
 pnpm exec ai-commit setup
 ```
 
-### Global Installation
+Or install it globally and set up each project:
 
 ```bash
-# With npm
 npm install -g @light-cat/ai-commit-msg
 
-# With pnpm
-pnpm add -g @light-cat/ai-commit-msg
-
-# Then set up git hooks in your project
 cd /path/to/your/project
 pnpm exec ai-commit setup
 ```
 
 ## Configuration
 
-Put a `.env` in the git root, or `~/.ai-commit.env` for a user-wide key. Real environment variables still win.
+Put a `.env` in the git root, or `~/.ai-commit.env` for a key you want everywhere. Environment
+variables you set yourself still take priority.
 
 ```env
 # Required. OPENAI_API_KEY is also accepted.
@@ -54,52 +64,60 @@ AI_MODEL=gpt-5.6-luna
 AI_TIMEOUT_MS=30000
 ```
 
-### Supported AI Providers
-
-| Provider | `AI_API_BASE_URL` | `AI_MODEL` |
-|----------|-------------------|------------|
-| OpenAI | `https://api.openai.com/v1` | `gpt-5.6-luna` (default), or any chat model you have access to |
-| DeepSeek | `https://api.deepseek.com` | `deepseek-v4-flash` or `deepseek-v4-pro` |
-| Azure OpenAI | Your Azure endpoint | Your deployment name. Set `OPENAI_API_VERSION` if required. |
-| Local / other | Your OpenAI-compatible endpoint | The model name that endpoint expects |
-
 `OPENAI_API_KEY`, `OPENAI_BASE_URL`, and `OPENAI_MODEL` are accepted as aliases.
 
-### Getting API Keys
+### Supported providers
 
-- **OpenAI**: [platform.openai.com](https://platform.openai.com)
-- **DeepSeek**: [platform.deepseek.com](https://platform.deepseek.com/api_keys)
+| Provider | `AI_API_BASE_URL` | `AI_MODEL` |
+| --- | --- | --- |
+| OpenAI | `https://api.openai.com/v1` | `gpt-5.6-luna` (default), or any chat model you have access to |
+| DeepSeek | `https://api.deepseek.com` | `deepseek-v4-flash` or `deepseek-v4-pro` |
+| Azure OpenAI | Your Azure endpoint | Your deployment name. Set `OPENAI_API_VERSION` if your endpoint needs it. |
+| Local or other | Your OpenAI-compatible endpoint | The model name that endpoint expects |
+
+### API keys
+
+- OpenAI: [platform.openai.com](https://platform.openai.com)
+- DeepSeek: [platform.deepseek.com](https://platform.deepseek.com/api_keys)
+
+### Language of the generated message
+
+**If you do not create a `.ai-commitrc`, messages are generated in Chinese.** To get English, create
+`.ai-commitrc` in your project root or home directory with:
+
+```yaml
+language: en
+```
+
+The same file lets you replace the prompts entirely. See
+[`.ai-commitrc.example`](.ai-commitrc.example) for the available variables (`{{diff}}`, `{{branch}}`,
+`{{lastCommit}}`) and a full example of both languages.
 
 ## Usage
 
-### Basic Usage
+### Basic
 
-After setting up the git hook, simply commit your changes without providing a message:
+After `ai-commit setup`, commit without a message:
 
 ```bash
-# Stage your changes
 git add .
-
-# Commit - AI will automatically generate a commit message
 git commit
 ```
 
-The tool will:
-1. Fetch staged changes
-2. Send them to the AI service
-3. Generate a conventional commit message
-4. Write it to the commit message file
+The tool reads the staged changes, sends them to the model, and writes the result into the commit
+message file.
 
-### Automatic Setup
+### Automatic setup
 
 ```bash
-# Install hooks and configure simple-git-hooks automatically
 pnpm exec ai-commit setup
 ```
 
-### Manual Setup (if you already have simple-git-hooks)
+This installs the hook and configures `simple-git-hooks` if your project does not already use it.
 
-Add to your `package.json`:
+### Manual setup
+
+If you already use `simple-git-hooks`, add this to `package.json`:
 
 ```json
 {
@@ -109,7 +127,7 @@ Add to your `package.json`:
 }
 ```
 
-Or if using `lefthook`:
+With `lefthook`:
 
 ```yaml
 # lefthook.yml
@@ -119,33 +137,32 @@ pre-commit:
       run: pnpm exec ai-commit
 ```
 
-### Standalone Usage
+### Standalone
 
 ```bash
-# Dry run (show message without writing)
+# Print the generated message without writing it
 pnpm exec ai-commit --dry-run
 
-# Verbose mode (show debug info)
+# Show what is sent to the model
 pnpm exec ai-commit --verbose
 
 # Help
 pnpm exec ai-commit --help
 ```
 
-## How It Works
+## How it works
 
-1. When you run `git commit`, the `prepare-commit-msg` hook is triggered
-2. The tool fetches:
-   - Staged changes (`git diff --cached`)
-   - Current branch name
-   - Last commit message (if available)
-3. Sends this information to the AI service
-4. Generates a conventional commit message
-5. Writes it to the commit message file
+1. `git commit` triggers the `prepare-commit-msg` hook.
+2. The tool collects the staged diff (`git diff --cached`), the branch name, and the last commit
+   message.
+3. It sends those to the configured endpoint and asks for a conventional commit message.
+4. The result is written to the commit message file.
+
+The diff is truncated to 8000 characters before it is sent.
 
 ## Example
 
-Given this staged change:
+Staged change:
 
 ```diff
 diff --git a/src/auth.ts b/src/auth.ts
@@ -154,7 +171,7 @@ diff --git a/src/auth.ts b/src/auth.ts
 +}
 ```
 
-The tool might generate:
+Generated message:
 
 ```
 feat(auth): add email validation function
@@ -164,111 +181,30 @@ feat(auth): add email validation function
 
 ### "AI_API_KEY is not set"
 
-Make sure your `.env` file exists and contains `AI_API_KEY`, or set the environment variable before committing.
+Check that `.env` exists in the git root and contains `AI_API_KEY`, or set it in your environment.
 
-### Commit message not being generated
+### No message is generated
 
-1. Check if changes are staged (`git add` first)
-2. Run with `--verbose` to see debug information
-3. Ensure your API key has sufficient credits/permissions
-4. Verify git hooks are installed: `cat .git/hooks/prepare-commit-msg`
+1. Make sure something is staged. `git add` first.
+2. Run `pnpm exec ai-commit --verbose` to see what happened.
+3. Check that your API key has credit and access to the model.
+4. Confirm the hook is installed: `cat .git/hooks/prepare-commit-msg`
 
-### Want to use a custom message?
+### Using your own message
 
-Simply provide a commit message when running `git commit -m "your message"` - the tool will detect an existing message and skip generation.
+Pass one and the tool skips generation:
+
+```bash
+git commit -m "your message"
+```
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+See [CONTRIBUTING.md](CONTRIBUTING.md) for local development and debugging.
 
-## Local Development
+## License
 
-### Debugging
-
-#### 1. Direct Source Execution
-
-Run the source code directly with `tsx` (recommended for ESM projects):
-
-```bash
-cd /path/to/node-ai-commit
-pnpm tsx bin/ai-commit.js --help
-```
-
-Or using the dev script:
-
-```bash
-pnpm dev -- --help
-```
-
-> **Note**: `ts-node` has limited ESM support. Use `tsx` instead for better compatibility.
-
-#### 2. Using npm link
-
-Link the local package globally and test in other projects:
-
-```bash
-cd /path/to/node-ai-commit
-pnpm link
-
-# In another project
-cd /path/to/your-project
-pnpm link @light-cat/ai-commit-msg
-pnpm exec ai-commit setup
-```
-
-#### 3. Local Path Installation
-
-In another project's `package.json`:
-
-```json
-{
-  "devDependencies": {
-    "@light-cat/ai-commit-msg": "link:/path/to/node-ai-commit"
-  }
-}
-```
-
-Then run `pnpm install` or `npm install` in that project.
-
-#### 4. Build and Test
-
-```bash
-# Build the TypeScript
-pnpm build
-
-# Run locally (requires build first)
-node bin/ai-commit.js --help
-
-# Or run directly without building
-pnpm tsx bin/ai-commit.js --help
-```
-
-### Testing Setup
-
-1. Create a test repository:
-```bash
-mkdir test-ai-commit && cd test-ai-commit
-git init
-```
-
-2. Link the local package:
-```bash
-cd /path/to/node-ai-commit
-pnpm link --global
-
-cd /path/to/test-ai-commit
-pnpm link --global @light-cat/ai-commit-msg
-```
-
-3. Set up and test:
-```bash
-# Create .env with your API key
-pnpm exec ai-commit setup
-
-# Make some changes and commit (don't provide message, let AI generate it)
-git add .
-git commit
-```
+MIT
 
 ---
 
